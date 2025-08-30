@@ -434,13 +434,14 @@
             border: 1px solid #0ea5e9;
             border-radius: 8px;
             padding: 1rem;
-            margin: 1rem 0;
+            margin: 1.5rem 0;
         }
         
         .ai-hint {
             display: flex;
             gap: 0.75rem;
             align-items: start;
+            margin-bottom: 0.75rem;
         }
         
         .ai-icon {
@@ -799,14 +800,18 @@
                     </div>
                 </div>
                 
+                <div style="display: flex; gap: 1rem; margin: 1rem 0;">
+                    <button class="ai-button" onclick="askAI()" style="flex: 1;">🤖 AI Guide</button>
+                    <button class="ai-button" onclick="resetCustom()" style="flex: 1; background: #6b7280;">🔄 Reset</button>
+                </div>
+                
                 <div class="ai-assistant" id="ai-assistant" style="display: none;">
                     <div class="ai-hint">
-                        <span class="ai-icon">🤖</span>
+                        <span class="ai-icon">💡</span>
                         <div class="ai-message" id="ai-message">
                             <!-- AI suggestions will appear here -->
                         </div>
                     </div>
-                    <button class="ai-button" onclick="askAI()">Ask AI for Help</button>
                 </div>
                 
                 <div class="function-preview">
@@ -1479,8 +1484,9 @@
             
             // If no g(x) provided, ask AI for suggestion
             if (!gString) {
+                DOM.aiAssistant.style.display = 'block';
                 DOM.aiMessage.textContent = 'Finding a good fixed-point form...';
-                gString = await getAISuggestion(fString, 'fixedpoint');
+                gString = await getAISuggestion(fString);
                 DOM.customGInput.value = gString;
                 updateCustomDisplays();
             }
@@ -1539,12 +1545,13 @@
             DOM.aiMessage.innerHTML = analysis;
         }
         
-        async function getAISuggestion(fString, type) {
+        async function getAISuggestion(fString) {
             const prompt = `
                 Function: ${fString}
-                Task: Suggest a good g(x) for fixed-point iteration.
+                Task: Suggest a good g(x) for fixed-point iteration to solve ${fString} = 0.
+                Be creative - consider rearranging the equation to isolate x.
                 Reply with ONLY the g(x) expression, no explanation.
-                Example: For x^2 - 4 = 0, reply: sqrt(4)
+                Example: For x^2 - 4 = 0, you might reply: sqrt(4) or 2/x
             `;
             
             try {
@@ -1559,12 +1566,31 @@
                 if (!response.ok) throw new Error(`API error: ${response.status}`);
                 
                 const result = await response.json();
-                const suggestion = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
                 
-                return suggestion || "(x + 2)^(1/3)"; // Fallback
+                if (text && text.trim()) {
+                    // Clean up the response - remove any markdown or extra text
+                    const cleaned = text.trim()
+                        .replace(/```[^`]*```/g, '')  // Remove code blocks
+                        .replace(/^g\(x\)\s*=\s*/i, '') // Remove "g(x) = " prefix
+                        .replace(/\n.*/g, '')  // Take only first line
+                        .trim();
+                    
+                    return cleaned || "x - (" + fString + ")/2"; // Better fallback
+                }
+                
+                // Dynamic fallback based on the function type
+                if (fString.includes('^3')) {
+                    return "(2*x^3 + " + fString.replace('x^3', '').replace('-', '') + ")/(3*x^2)";
+                } else if (fString.includes('^2')) {
+                    return "x - (" + fString + ")/(2*x)";
+                } else {
+                    return "x - (" + fString + ")/2";
+                }
             } catch (e) {
                 console.log('AI suggestion failed, using fallback:', e);
-                return "(x + 2)^(1/3)"; // Fallback
+                // Return a more intelligent fallback based on the function
+                return "x - (" + fString + ")/2";
             }
         }
         
