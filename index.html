@@ -897,11 +897,11 @@
                 name: "Simple Polynomial",
                 category: "Polynomial",
                 f_string: "x^2 - 4",
-                g_string: "sqrt(4)",
+                g_string: "4/x",
                 a: 0, b: 3, x0: 1, x1: 3,
                 insights: [
                     "Simple root at x = 2",
-                    "All methods converge quickly",
+                    "Fixed-point with g(x) = 4/x rearranges x² = 4",
                     "Newton achieves quadratic convergence"
                 ]
             },
@@ -945,11 +945,11 @@
                 name: "Steep Function",
                 category: "Challenging",
                 f_string: "x^10 - 1",
-                g_string: "1^(1/10)",
+                g_string: "x - (x^10 - 1)/20",
                 a: 0, b: 2, x0: 0.5, x1: 1.5,
                 insights: [
                     "Very steep near the root x = 1",
-                    "Bisection slow but reliable",
+                    "Damped iteration g(x) = x - (x¹⁰-1)/20 for stability",
                     "Newton may overshoot if starting far from root"
                 ]
             },
