@@ -1364,17 +1364,30 @@
             
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // Clean up the function string for proper parsing
+            let fString = DOM.customFunctionInput.value;
+            if (!fString) {
+                ctx.fillStyle = '#9e9e9e';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Enter a function to see the graph', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // Auto-fix common syntax issues
+            fString = fString
+                .replace(/cosx/gi, 'cos(x)')
+                .replace(/sinx/gi, 'sin(x)')
+                .replace(/tanx/gi, 'tan(x)')
+                .replace(/lnx/gi, 'ln(x)')
+                .replace(/logx/gi, 'log(x)')
+                .replace(/expx/gi, 'exp(x)');
+            
             let func;
             try {
-                const fString = DOM.customFunctionInput.value;
-                if (!fString) {
-                    ctx.fillStyle = '#9e9e9e';
-                    ctx.font = '14px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Enter a function to see the graph', canvas.width / 2, canvas.height / 2);
-                    return;
-                }
                 func = math.compile(fString);
+                // Test evaluation to catch runtime errors
+                func.evaluate({x: 0});
             } catch (e) {
                 ctx.fillStyle = '#dc2626';
                 ctx.font = '14px sans-serif';
@@ -1388,28 +1401,31 @@
             const x0 = parseFloat(DOM.x0Input.value) || 0;
             const x1 = parseFloat(DOM.x1Input.value) || 1;
             
-            const xMin = Math.min(a - 1, -2);
-            const xMax = Math.max(b + 1, 2);
+            const xMin = Math.min(a - 1, -3);
+            const xMax = Math.max(b + 1, 3);
             const padding = 30;
             
-            // Calculate y bounds
+            // Calculate y bounds by sampling
             let yMin = Infinity, yMax = -Infinity;
+            let hasValidPoints = false;
+            
             for (let px = 0; px < canvas.width; px++) {
                 const x = xMin + (px / canvas.width) * (xMax - xMin);
                 try {
                     const y = func.evaluate({x: x});
-                    if (isFinite(y) && Math.abs(y) < 1000) {
+                    if (isFinite(y) && Math.abs(y) < 100) {
                         yMin = Math.min(yMin, y);
                         yMax = Math.max(yMax, y);
+                        hasValidPoints = true;
                     }
                 } catch (e) {}
             }
             
-            if (!isFinite(yMin) || !isFinite(yMax)) {
+            if (!hasValidPoints) {
                 ctx.fillStyle = '#dc2626';
                 ctx.font = '14px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('Unable to plot function - check domain', canvas.width / 2, canvas.height / 2);
+                ctx.fillText('Unable to plot function in this range', canvas.width / 2, canvas.height / 2);
                 return;
             }
             
@@ -1433,6 +1449,12 @@
                 ctx.beginPath();
                 ctx.moveTo(toCanvasX(x), padding);
                 ctx.lineTo(toCanvasX(x), canvas.height - padding);
+                ctx.stroke();
+                
+                const y = yMin + i * (yMax - yMin) / 10;
+                ctx.beginPath();
+                ctx.moveTo(padding, toCanvasY(y));
+                ctx.lineTo(canvas.width - padding, toCanvasY(y));
                 ctx.stroke();
             }
             
@@ -1472,7 +1494,7 @@
                 const x = xMin + (px / canvas.width) * (xMax - xMin);
                 try {
                     const y = func.evaluate({x: x});
-                    if (isFinite(y) && Math.abs(y) < 1000) {
+                    if (isFinite(y) && Math.abs(y) < 100) {
                         if (firstPoint) {
                             ctx.moveTo(toCanvasX(x), toCanvasY(y));
                             firstPoint = false;
@@ -1534,11 +1556,20 @@
                 return;
             }
             
+            // Clean up the function string for proper parsing
+            const cleanedF = fString
+                .replace(/cosx/gi, 'cos(x)')
+                .replace(/sinx/gi, 'sin(x)')
+                .replace(/tanx/gi, 'tan(x)')
+                .replace(/lnx/gi, 'ln(x)')
+                .replace(/logx/gi, 'log(x)')
+                .replace(/expx/gi, 'exp(x)');
+            
             // If no g(x) provided, ask AI for suggestion
             if (!gString) {
                 DOM.aiAssistant.style.display = 'block';
-                DOM.aiMessage.textContent = 'Finding a good fixed-point form...';
-                gString = await getAISuggestion(fString);
+                DOM.aiMessage.innerHTML = '💡 Finding a good fixed-point form...';
+                gString = await getAISuggestion(cleanedF);
                 DOM.customGInput.value = gString;
                 updateCustomDisplays();
             }
@@ -1546,11 +1577,12 @@
             // Compile functions
             let f_compiled, f_prime_compiled, g_compiled;
             try {
-                f_compiled = math.compile(fString);
-                f_prime_compiled = math.derivative(fString, 'x').compile();
+                f_compiled = math.compile(cleanedF);
+                f_prime_compiled = math.derivative(cleanedF, 'x').compile();
                 g_compiled = math.compile(gString);
             } catch (e) {
-                alert('Error compiling functions. Check your syntax.');
+                DOM.aiAssistant.style.display = 'block';
+                DOM.aiMessage.innerHTML = '💡 <strong>Error:</strong> Check your function syntax. Try using * for multiplication and parentheses for grouping.';
                 return;
             }
             
@@ -1563,7 +1595,8 @@
             const benchmarkRoot = findBenchmarkRoot(f_compiled, f_prime_compiled, x0);
             
             if (isNaN(benchmarkRoot)) {
-                DOM.aiMessage.textContent = 'Having trouble finding a root. Try adjusting your initial guesses.';
+                DOM.aiAssistant.style.display = 'block';
+                DOM.aiMessage.innerHTML = '💡 <strong>Having trouble finding a root.</strong> Try adjusting your initial guesses or check if the function has roots in this interval.';
                 return;
             }
             
@@ -1582,6 +1615,10 @@
             
             // Show results section
             DOM.customResults.style.display = 'block';
+            
+            // Show success message
+            DOM.aiAssistant.style.display = 'block';
+            DOM.aiMessage.innerHTML = '💡 <strong>Analysis complete!</strong> Found root at x ≈ ' + benchmarkRoot.toFixed(6) + '. See results below.';
         }
         
         async function askAI() {
