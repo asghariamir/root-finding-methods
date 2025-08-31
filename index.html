@@ -807,7 +807,6 @@
                 
                 <div class="ai-assistant" id="ai-assistant" style="display: none;">
                     <div class="ai-hint">
-                        <span class="ai-icon">💡</span>
                         <div class="ai-message" id="ai-message">
                             <!-- AI suggestions will appear here -->
                         </div>
@@ -1367,12 +1366,20 @@
             
             let func;
             try {
-                func = math.compile(DOM.customFunctionInput.value);
+                const fString = DOM.customFunctionInput.value;
+                if (!fString) {
+                    ctx.fillStyle = '#9e9e9e';
+                    ctx.font = '14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Enter a function to see the graph', canvas.width / 2, canvas.height / 2);
+                    return;
+                }
+                func = math.compile(fString);
             } catch (e) {
-                ctx.fillStyle = '#9e9e9e';
+                ctx.fillStyle = '#dc2626';
                 ctx.font = '14px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('Enter a valid function to see the graph', canvas.width / 2, canvas.height / 2);
+                ctx.fillText('Error: Check function syntax', canvas.width / 2, canvas.height / 2);
                 return;
             }
             
@@ -1391,11 +1398,19 @@
                 const x = xMin + (px / canvas.width) * (xMax - xMin);
                 try {
                     const y = func.evaluate({x: x});
-                    if (isFinite(y)) {
+                    if (isFinite(y) && Math.abs(y) < 1000) {
                         yMin = Math.min(yMin, y);
                         yMax = Math.max(yMax, y);
                     }
                 } catch (e) {}
+            }
+            
+            if (!isFinite(yMin) || !isFinite(yMax)) {
+                ctx.fillStyle = '#dc2626';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Unable to plot function - check domain', canvas.width / 2, canvas.height / 2);
+                return;
             }
             
             const yPadding = (yMax - yMin) * 0.1 || 1;
@@ -1431,9 +1446,21 @@
             ctx.lineTo(canvas.width - padding, toCanvasY(0));
             ctx.stroke();
             
-            // Draw interval
+            // Draw interval [a, b] - shaded region
             ctx.fillStyle = 'rgba(15, 118, 110, 0.1)';
             ctx.fillRect(toCanvasX(a), padding, toCanvasX(b) - toCanvasX(a), canvas.height - 2 * padding);
+            
+            // Draw interval markers
+            ctx.strokeStyle = 'rgba(15, 118, 110, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(a), padding);
+            ctx.lineTo(toCanvasX(a), canvas.height - padding);
+            ctx.moveTo(toCanvasX(b), padding);
+            ctx.lineTo(toCanvasX(b), canvas.height - padding);
+            ctx.stroke();
+            ctx.setLineDash([]);
             
             // Draw function
             ctx.strokeStyle = '#0f766e';
@@ -1471,6 +1498,31 @@
             ctx.beginPath();
             ctx.arc(toCanvasX(x1), toCanvasY(0), 5, 0, 2 * Math.PI);
             ctx.fill();
+            
+            // Add labels for initial guesses
+            ctx.fillStyle = '#4b5563';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('x₀', toCanvasX(x0), toCanvasY(0) + 20);
+            ctx.fillText('x₁', toCanvasX(x1), toCanvasY(0) + 20);
+            
+            // Add legend/guide
+            ctx.font = '11px sans-serif';
+            ctx.fillStyle = '#4b5563';
+            ctx.textAlign = 'left';
+            
+            // Legend box
+            const legendY = 10;
+            ctx.fillText('Green area: Search interval [a,b]', padding, legendY);
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(padding, legendY + 5, 10, 10);
+            ctx.fillStyle = '#4b5563';
+            ctx.fillText('= x₀', padding + 15, legendY + 14);
+            
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(padding + 50, legendY + 5, 10, 10);
+            ctx.fillStyle = '#4b5563';
+            ctx.fillText('= x₁', padding + 65, legendY + 14);
         }
         
         async function runCustomAnalysis() {
