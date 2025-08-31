@@ -783,10 +783,10 @@
             <div class="section">
                 <h2>Analyze Your Own Function</h2>
                 <p style="color: var(--text-muted); margin-bottom: 0.5rem;">
-                    Enter your function and let our AI assistant help you find the best approach.
+                    Enter your function and get intelligent suggestions for fixed-point iteration forms.
                 </p>
                 <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic; margin-bottom: 1.5rem;">
-                    *Please note: The AI helper can make mistakes and may be temporarily unavailable during periods of high traffic.
+                    *The AI assistant provides mathematical rearrangements but may occasionally make errors.
                 </p>
                 
                 <div class="control-grid">
@@ -1047,7 +1047,7 @@
                 if (fString && !DOM.customGInput.value) {
                     DOM.aiAssistant.style.display = 'block';
                     DOM.aiMessage.innerHTML = '💡 Getting suggestion for fixed-point form...';
-                    const suggestion = await getAISuggestion(fString);
+                    const suggestion = await getIntelligentSuggestion(fString);
                     DOM.aiMessage.innerHTML = `💡 <strong>Suggestion:</strong> Try g(x) = ${suggestion}. This rearranges your equation for iteration.`;
                 }
             });
@@ -1089,6 +1089,184 @@
                     DOM.aiMessage.innerHTML = `💡 <strong>Check syntax:</strong> Use * for multiplication, parentheses for grouping.`;
                 }
             }
+        }
+        
+        // ENHANCED AI SUGGESTION SYSTEM
+        async function getIntelligentSuggestion(fString) {
+            // First try intelligent pattern recognition
+            const localSuggestion = getSmartRearrangement(fString);
+            if (localSuggestion !== null) {
+                return localSuggestion;
+            }
+            
+            // Then try AI with improved prompting
+            return await getAISuggestion(fString);
+        }
+        
+        function getSmartRearrangement(fString) {
+            // Clean and normalize the function
+            const cleaned = fString.toLowerCase().trim();
+            
+            // Pattern 1: Direct isolation (x - h(x) = 0 → x = h(x))
+            if (cleaned.match(/^x\s*[-+]\s*.+/) && !cleaned.includes('*x') && !cleaned.includes('x^')) {
+                // Extract h(x) from x - h(x) = 0
+                if (cleaned.startsWith('x -')) {
+                    const hx = cleaned.substring(3).trim();
+                    return hx;
+                } else if (cleaned.startsWith('x +')) {
+                    const hx = cleaned.substring(3).trim();
+                    return `-${hx}`;
+                }
+            }
+            
+            // Pattern 2: Cosine equations (cos(x) - x = 0 → x = cos(x))
+            if (cleaned.includes('cos(x)') && cleaned.includes('- x')) {
+                return 'cos(x)';
+            }
+            if (cleaned.includes('x - cos(x)')) {
+                return 'cos(x)';
+            }
+            
+            // Pattern 3: Sine equations
+            if (cleaned.includes('sin(x)') && cleaned.includes('- x')) {
+                return 'sin(x)';
+            }
+            
+            // Pattern 4: Exponential equations (x - exp(-x) = 0 → x = exp(-x))
+            if (cleaned.match(/x\s*-\s*exp?\(-x\)/)) {
+                return 'exp(-x)';
+            }
+            if (cleaned.match(/x\s*-\s*e\^-x/)) {
+                return 'e^(-x)';
+            }
+            
+            // Pattern 5: Square root isolation (x^2 - c = 0 → x = sqrt(c))
+            const squarePattern = cleaned.match(/x\^2\s*[-+]\s*(\d+(?:\.\d+)?)/);
+            if (squarePattern) {
+                const constant = parseFloat(squarePattern[1]);
+                if (cleaned.includes('-')) {
+                    return `sqrt(${constant})`;
+                } else {
+                    return `sqrt(${-constant})`;
+                }
+            }
+            
+            // Pattern 6: Cubic isolation (x^3 - ax - b = 0 → x = (ax + b)^(1/3))
+            const cubicPattern = cleaned.match(/x\^3\s*[-+]\s*(\d*(?:\.\d+)?)\*?x?\s*[-+]\s*(\d+(?:\.\d+)?)/);
+            if (cubicPattern) {
+                const aCoeff = cubicPattern[1] || '1';
+                const bConst = cubicPattern[2];
+                return `(${aCoeff}*x + ${bConst})^(1/3)`;
+            }
+            
+            // Pattern 7: Linear in different forms (ax - b = 0 → x = b/a)
+            const linearPattern = cleaned.match(/(\d+(?:\.\d+)?)\*?x\s*[-+]\s*(\d+(?:\.\d+)?)/);
+            if (linearPattern && !cleaned.includes('^')) {
+                const a = parseFloat(linearPattern[1]);
+                const b = parseFloat(linearPattern[2]);
+                if (cleaned.includes('-')) {
+                    return (b / a).toString();
+                } else {
+                    return (-b / a).toString();
+                }
+            }
+            
+            // Pattern 8: Rational functions
+            if (cleaned.includes('/')) {
+                // For equations like x - a/x = 0, suggest x = a/x
+                const rationalPattern = cleaned.match(/x\s*[-+]\s*(\d+(?:\.\d+)?)\s*\/\s*x/);
+                if (rationalPattern) {
+                    const a = rationalPattern[1];
+                    return cleaned.includes('-') ? `${a}/x` : `-${a}/x`;
+                }
+            }
+            
+            return null; // No pattern recognized
+        }
+        
+        async function getAISuggestion(fString) {
+            // Enhanced prompt for much better AI suggestions
+            const prompt = `
+Given the equation: ${fString} = 0
+
+Find a mathematically meaningful rearrangement for fixed-point iteration g(x).
+
+RULES FOR GOOD REARRANGEMENTS:
+1. For x - h(x) = 0, use g(x) = h(x)
+2. For x^2 - c = 0, use g(x) = sqrt(c) 
+3. For x^3 - ax - b = 0, use g(x) = (ax + b)^(1/3)
+4. For transcendental equations, isolate x creatively
+
+EXAMPLES:
+- cos(x) - x = 0 → g(x) = cos(x)
+- x^2 - 4 = 0 → g(x) = sqrt(4) or g(x) = 2
+- x - exp(-x) = 0 → g(x) = exp(-x)
+- x^3 - 2x - 5 = 0 → g(x) = (2x + 5)^(1/3)
+
+Your turn. Provide ONLY the g(x) expression, no explanation.
+For: ${fString} = 0
+Answer: g(x) = `;
+
+            try {
+                const response = await fetch("https://api.anthropic.com/v1/messages", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        model: "claude-sonnet-4-20250514",
+                        max_tokens: 100,
+                        messages: [{ role: "user", content: prompt }]
+                    })
+                });
+                
+                if (!response.ok) throw new Error(`API error: ${response.status}`);
+                
+                const result = await response.json();
+                const text = result.content?.[0]?.text;
+                
+                if (text && text.trim()) {
+                    // Clean up the response
+                    const cleaned = text.trim()
+                        .replace(/g\(x\)\s*=\s*/i, '')
+                        .replace(/```[^`]*```/g, '')
+                        .split('\n')[0]
+                        .trim();
+                    
+                    // Validate the suggestion makes sense
+                    if (cleaned && cleaned.length > 0 && cleaned.length < 50) {
+                        return cleaned;
+                    }
+                }
+            } catch (e) {
+                console.log('AI suggestion failed:', e);
+            }
+            
+            // Enhanced fallback system
+            return getEnhancedFallback(fString);
+        }
+        
+        function getEnhancedFallback(fString) {
+            const cleaned = fString.toLowerCase().trim();
+            
+            // Smart fallbacks based on function structure
+            if (cleaned.includes('cos')) return 'cos(x)';
+            if (cleaned.includes('sin')) return 'sin(x)';
+            if (cleaned.includes('exp') || cleaned.includes('e^')) return 'exp(-x)';
+            if (cleaned.includes('ln') || cleaned.includes('log')) return 'exp(x-1)';
+            
+            // Polynomial fallbacks
+            if (cleaned.includes('x^3')) {
+                return 'x - (x^3 - 2*x - 5)/(3*x^2 - 2)'; // Newton-like rearrangement
+            }
+            if (cleaned.includes('x^2')) {
+                const match = cleaned.match(/(\d+)/);
+                const constant = match ? match[1] : '4';
+                return `sqrt(${constant})`;
+            }
+            
+            // Default: simple rearrangement
+            return `x - (${fString})/2`;
         }
         
         function createExampleCards() {
@@ -1606,11 +1784,11 @@
                 .replace(/logx/gi, 'log(x)')
                 .replace(/expx/gi, 'exp(x)');
             
-            // If no g(x) provided, ask AI for suggestion
+            // If no g(x) provided, get intelligent suggestion
             if (!gString) {
                 DOM.aiAssistant.style.display = 'block';
                 DOM.aiMessage.innerHTML = '💡 Finding a good fixed-point form...';
-                gString = await getAISuggestion(cleanedF);
+                gString = await getIntelligentSuggestion(cleanedF);
                 DOM.customGInput.value = gString;
                 updateCustomDisplays();
             }
@@ -1675,87 +1853,41 @@
             DOM.aiMessage.innerHTML = analysis;
         }
         
-        async function getAISuggestion(fString) {
-            const prompt = `
-                Function: ${fString}
-                Task: Suggest a good g(x) for fixed-point iteration to solve ${fString} = 0.
-                Be creative - consider rearranging the equation to isolate x.
-                Reply with ONLY the g(x) expression, no explanation.
-                Example: For x^2 - 4 = 0, you might reply: sqrt(4) or 2/x
-            `;
-            
-            try {
-                const response = await fetch('/api/gemini', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ role: "user", parts: [{ text: prompt }] }]
-                    })
-                });
-                
-                if (!response.ok) throw new Error(`API error: ${response.status}`);
-                
-                const result = await response.json();
-                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                
-                if (text && text.trim()) {
-                    // Clean up the response - remove any markdown or extra text
-                    const cleaned = text.trim()
-                        .replace(/```[^`]*```/g, '')  // Remove code blocks
-                        .replace(/^g\(x\)\s*=\s*/i, '') // Remove "g(x) = " prefix
-                        .replace(/\n.*/g, '')  // Take only first line
-                        .trim();
-                    
-                    return cleaned || "x - (" + fString + ")/2"; // Better fallback
-                }
-                
-                // Dynamic fallback based on the function type
-                if (fString.includes('^3')) {
-                    return "(2*x^3 + " + fString.replace('x^3', '').replace('-', '') + ")/(3*x^2)";
-                } else if (fString.includes('^2')) {
-                    return "x - (" + fString + ")/(2*x)";
-                } else {
-                    return "x - (" + fString + ")/2";
-                }
-            } catch (e) {
-                console.log('AI suggestion failed, using fallback:', e);
-                // Return a more intelligent fallback based on the function
-                return "x - (" + fString + ")/2";
-            }
-        }
-        
         async function getAIAnalysis(fString) {
             const prompt = `
-                Analyze this function for root-finding: ${fString}
-                
-                Provide 2-3 short tips:
-                1. Best method to use and why
-                2. Good initial guess range
-                3. Any warnings (discontinuities, multiple roots, etc.)
-                
-                Keep it brief and friendly! Use simple language.
+            Analyze this function for root-finding: ${fString} = 0
+            
+            Provide 2-3 brief educational tips about:
+            1. Which method works best and why
+            2. Good initial guess strategy  
+            3. Any potential challenges (multiple roots, discontinuities, etc.)
+            
+            Keep it concise and student-friendly!
             `;
             
             try {
-                const response = await fetch('/api/gemini', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                const response = await fetch("https://api.anthropic.com/v1/messages", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
                     body: JSON.stringify({
-                        contents: [{ role: "user", parts: [{ text: prompt }] }]
+                        model: "claude-sonnet-4-20250514",
+                        max_tokens: 200,
+                        messages: [{ role: "user", content: prompt }]
                     })
                 });
                 
                 if (!response.ok) throw new Error(`API error: ${response.status}`);
                 
                 const result = await response.json();
-                const analysis = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                const analysis = result.content?.[0]?.text;
                 
-                // Clean up any markdown formatting
                 return analysis?.replace(/\*\*/g, '').replace(/\*/g, '•') 
-                    || "Try Newton's method with x₀ = 1. Adjust if it doesn't converge!";
+                    || "💡 Quick tips: Newton's method usually works best for smooth functions. Try starting near where the function crosses zero. If one method fails, bisection always works if you bracket the root!";
             } catch (e) {
-                console.log('AI analysis failed, using fallback:', e);
-                return "💡 Quick tips: Newton's method usually works best for smooth functions. Try starting near where the function crosses zero. If one method fails, bisection always works (if you bracket the root)!";
+                console.log('AI analysis failed:', e);
+                return "💡 Quick tips: Newton's method usually works best for smooth functions. Try starting near where the function crosses zero. If one method fails, bisection always works if you bracket the root!";
             }
         }
         
