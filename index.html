@@ -1030,8 +1030,28 @@
         
         function setupEventListeners() {
             // Custom function inputs
-            DOM.customFunctionInput.addEventListener('input', updateCustomDisplays);
-            DOM.customGInput.addEventListener('input', updateCustomDisplays);
+            DOM.customFunctionInput.addEventListener('input', () => {
+                // Clear g(x) when f(x) changes
+                DOM.customGInput.value = '';
+                updateCustomDisplays();
+            });
+            
+            DOM.customGInput.addEventListener('input', () => {
+                updateCustomDisplays();
+                validateFixedPoint();
+            });
+            
+            // When user focuses on g(x) input, provide AI hint
+            DOM.customGInput.addEventListener('focus', async () => {
+                const fString = DOM.customFunctionInput.value;
+                if (fString && !DOM.customGInput.value) {
+                    DOM.aiAssistant.style.display = 'block';
+                    DOM.aiMessage.innerHTML = '💡 Getting suggestion for fixed-point form...';
+                    const suggestion = await getAISuggestion(fString);
+                    DOM.aiMessage.innerHTML = `💡 <strong>Suggestion:</strong> Try g(x) = ${suggestion}. This rearranges your equation for iteration.`;
+                }
+            });
+            
             DOM.aInput.addEventListener('input', updateCustomDisplays);
             DOM.bInput.addEventListener('input', updateCustomDisplays);
             DOM.x0Input.addEventListener('input', updateCustomDisplays);
@@ -1048,6 +1068,27 @@
                 DOM.demoX0Value.textContent = parseFloat(e.target.value).toFixed(1);
             });
             DOM.demoStart.addEventListener('click', startDemoAnimation);
+        }
+        
+        async function validateFixedPoint() {
+            const fString = DOM.customFunctionInput.value;
+            const gString = DOM.customGInput.value;
+            
+            if (fString && gString) {
+                DOM.aiAssistant.style.display = 'block';
+                
+                // Check if g(x) is reasonable for the given f(x)
+                try {
+                    const g_compiled = math.compile(gString.replace(/cosx/gi, 'cos(x)').replace(/sinx/gi, 'sin(x)'));
+                    const g_test = g_compiled.evaluate({x: 1});
+                    
+                    if (isFinite(g_test)) {
+                        DOM.aiMessage.innerHTML = `💡 <strong>Fixed-point set!</strong> Remember: convergence requires |g'(x)| < 1 near the root.`;
+                    }
+                } catch (e) {
+                    DOM.aiMessage.innerHTML = `💡 <strong>Check syntax:</strong> Use * for multiplication, parentheses for grouping.`;
+                }
+            }
         }
         
         function createExampleCards() {
@@ -2031,6 +2072,7 @@
             };
         }
         
+        // Tab switching function - global
         function switchTab(tabName) {
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.remove('active');
@@ -2043,6 +2085,44 @@
             });
             document.getElementById(`${tabName}-tab`).classList.add('active');
         }
+        
+        // Reset function - make it global
+        function resetCustom() {
+            // Clear all input fields
+            document.getElementById('custom-function-input').value = '';
+            document.getElementById('custom-g-input').value = '';
+            document.getElementById('a-input').value = '-2';
+            document.getElementById('b-input').value = '3';
+            document.getElementById('x0-input').value = '0';
+            document.getElementById('x1-input').value = '1';
+            
+            // Hide results and AI assistant
+            const customResults = document.getElementById('custom-results');
+            const aiAssistant = document.getElementById('ai-assistant');
+            if (customResults) customResults.style.display = 'none';
+            if (aiAssistant) aiAssistant.style.display = 'none';
+            
+            // Clear displays
+            const fDisplay = document.getElementById('custom-f-display');
+            const gDisplay = document.getElementById('custom-g-display');
+            if (fDisplay) fDisplay.innerHTML = '<span style="color: #9e9e9e;">Enter a function above</span>';
+            if (gDisplay) gDisplay.innerHTML = '<span style="color: #9e9e9e;">AI will suggest or enter manually</span>';
+            
+            // Clear graph
+            const canvas = document.getElementById('function-graph');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#9e9e9e';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Enter a function to see the graph', canvas.width / 2, canvas.height / 2);
+            }
+        }
+        
+        // Make functions globally accessible
+        window.switchTab = switchTab;
+        window.resetCustom = resetCustom;
         
         // Demo functions (simplified from original)
         function initializeDemo() {
