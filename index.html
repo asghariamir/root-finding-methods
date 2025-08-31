@@ -897,12 +897,12 @@
                 name: "Simple Polynomial",
                 category: "Polynomial",
                 f_string: "x^2 - 4",
-                g_string: "sqrt(4)",
+                g_string: "4/x",
                 a: 0, b: 3, x0: 1, x1: 3,
                 insights: [
                     "Simple root at x = 2",
                     "All methods converge quickly",
-                    "Newton achieves quadratic convergence"
+                    "Fixed-point with g(x) = 4/x rearranges to x² = 4"
                 ]
             },
             cubic: {
@@ -913,7 +913,7 @@
                 a: 1, b: 2, x0: 1.5, x1: 2,
                 insights: [
                     "Single real root near x ≈ 1.52",
-                    "Fixed-point may diverge without careful g(x) choice",
+                    "g(x) = (x+2)^(1/3) isolates the cubic term",
                     "Newton's method excels here"
                 ]
             },
@@ -925,8 +925,8 @@
                 a: 0, b: 1, x0: 0.5, x1: 1,
                 insights: [
                     "Root at x ≈ 0.739",
-                    "Fixed-point iteration works well",
-                    "Bisection provides guaranteed convergence"
+                    "Natural fixed-point form: x = cos(x)",
+                    "Fixed-point iteration converges nicely"
                 ]
             },
             exponential: {
@@ -937,7 +937,7 @@
                 a: 0, b: 1, x0: 0.5, x1: 0.6,
                 insights: [
                     "Root at x ≈ 0.567",
-                    "All methods work reasonably well",
+                    "Direct rearrangement: x = e^(-x)",
                     "Good example for comparing convergence rates"
                 ]
             },
@@ -945,19 +945,19 @@
                 name: "Steep Function",
                 category: "Challenging",
                 f_string: "x^10 - 1",
-                g_string: "1^(1/10)",
+                g_string: "x - (x^10 - 1)/20",
                 a: 0, b: 2, x0: 0.5, x1: 1.5,
                 insights: [
                     "Very steep near the root x = 1",
-                    "Bisection slow but reliable",
-                    "Newton may overshoot if starting far from root"
+                    "Damped iteration g(x) = x - (x¹⁰-1)/20 for stability",
+                    "Newton may overshoot due to steep gradient"
                 ]
             },
             multiple_roots: {
                 name: "Multiple Roots",
                 category: "Challenging",
                 f_string: "(x-1)^2 * (x+2)",
-                g_string: "x - ((x-1)^2 * (x+2))/3",
+                g_string: "1 + sqrt(2-x)",
                 a: -3, b: 2, x0: 0, x1: 0.5,
                 insights: [
                     "Double root at x = 1, single at x = -2",
